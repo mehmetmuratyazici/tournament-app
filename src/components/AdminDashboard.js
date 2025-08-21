@@ -7,6 +7,10 @@ function AdminDashboard({ registeredUsers }) {
     const [adminPassword, setAdminPassword] = useState('');
     const [showPasswordModal, setShowPasswordModal] = useState(true);
     
+    // Player swap state
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [swapMode, setSwapMode] = useState(false);
+    
     // Admin password hash - in a real app this would be stored securely
     const ADMIN_PASSWORD_HASH = '5ebe655f'; // Huseyin61
 
@@ -698,6 +702,83 @@ function AdminDashboard({ registeredUsers }) {
         }));
     };
 
+    // Oyuncu değiştirme fonksiyonu
+    const swapPlayers = (player1, player2, group1Id, group2Id) => {
+        if (!isAdminAuthenticated) {
+            alert('Bu işlem için admin yetkisi gereklidir!');
+            return;
+        }
+
+        // Maçlar oynanmış mı kontrol et
+        const tournament = tournaments[selectedGender];
+        const hasPlayedMatches = tournament.groups.some(group => 
+            group.matches.some(match => match.isPlayed)
+        );
+
+        if (hasPlayedMatches) {
+            alert('Maçlar başladıktan sonra oyuncu değişikliği yapılamaz!');
+            return;
+        }
+
+        setTournaments(prev => {
+            const newTournaments = { ...prev };
+            const tournament = newTournaments[selectedGender];
+            
+            // Grupları bul
+            const group1 = tournament.groups.find(g => g.id === group1Id);
+            const group2 = tournament.groups.find(g => g.id === group2Id);
+            
+            if (group1 && group2) {
+                // Oyuncuları değiştir
+                const player1Index = group1.players.findIndex(p => p.tcKimlik === player1.tcKimlik);
+                const player2Index = group2.players.findIndex(p => p.tcKimlik === player2.tcKimlik);
+                
+                if (player1Index !== -1 && player2Index !== -1) {
+                    // Oyuncuları değiştir
+                    [group1.players[player1Index], group2.players[player2Index]] = 
+                    [group2.players[player2Index], group1.players[player1Index]];
+                    
+                    // Maç listesini yeniden oluştur
+                    group1.matches = createGroupMatches(group1.players);
+                    group2.matches = createGroupMatches(group2.players);
+                    
+                    // Puan durumunu sıfırla
+                    group1.standings = calculateStandings(group1.players, group1.matches);
+                    group2.standings = calculateStandings(group2.players, group2.matches);
+                    
+                    console.log(`Oyuncular değiştirildi: ${player1.ad} <-> ${player2.ad}`);
+                }
+            }
+            
+            return newTournaments;
+        });
+        
+        // Swap modunu kapat
+        setSwapMode(false);
+        setSelectedPlayer(null);
+    };
+
+    // Oyuncu seçme fonksiyonu
+    const handlePlayerSelect = (player, groupId) => {
+        if (!isAdminAuthenticated) return;
+        
+        if (!swapMode) {
+            // İlk oyuncu seçildi
+            setSelectedPlayer({ player, groupId });
+            setSwapMode(true);
+        } else {
+            // İkinci oyuncu seçildi
+            if (selectedPlayer.groupId === groupId && selectedPlayer.player.tcKimlik === player.tcKimlik) {
+                // Aynı oyuncu seçildi, iptal et
+                setSwapMode(false);
+                setSelectedPlayer(null);
+            } else {
+                // Farklı oyuncu seçildi, değiştir
+                swapPlayers(selectedPlayer.player, player, selectedPlayer.groupId, groupId);
+            }
+        }
+    };
+
     const currentTournament = tournaments[selectedGender];
 
     return (
@@ -1100,10 +1181,103 @@ function AdminDashboard({ registeredUsers }) {
                     {currentTournament.phase === 'groups' ? (
                         // Grup aşaması
                         <>
+                            {/* Swap Mode Bilgisi */}
+                            {swapMode && (
+                                <div className="swap-mode-info">
+                                    <div className="swap-mode-alert">
+                                        🔄 <strong>Oyuncu Değiştirme Modu Aktif</strong>
+                                        <br/>
+                                        Değiştirmek istediğiniz oyuncuyu seçin
+                                        {selectedPlayer && (
+                                            <span className="selected-player">
+                                                <br/>Seçilen: <strong>{selectedPlayer.player.ad}</strong> (Grup {selectedPlayer.groupId})
+                                            </span>
+                                        )}
+                                        <button 
+                                            className="cancel-swap-btn"
+                                            onClick={() => {
+                                                setSwapMode(false);
+                                                setSelectedPlayer(null);
+                                            }}
+                                        >
+                                            İptal
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Swap Mode Butonu */}
+                            {isAdminAuthenticated && !swapMode && (
+                                <div className="swap-controls">
+                                    <button 
+                                        className="enable-swap-btn"
+                                        onClick={() => setSwapMode(true)}
+                                        disabled={currentTournament.groups.some(group => 
+                                            group.matches.some(match => match.isPlayed)
+                                        )}
+                                    >
+                                        🔄 Oyuncu Değiştir
+                                    </button>
+                                    {currentTournament.groups.some(group => 
+                                        group.matches.some(match => match.isPlayed)
+                                    ) && (
+                                        <div className="swap-disabled-info">
+                                            ⚠️ Maçlar başladıktan sonra oyuncu değişikliği yapılamaz
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {currentTournament.groups.map(group => (
                                 <div key={group.id} className="tournament-group">
                                     <h4>Grup {group.id}</h4>
                                     
+                                    {/* Grup Oyuncuları */}
+                                    <div className="group-players">
+                                        <h5>Oyuncular</h5>
+                                        <div className="players-grid">
+                                            {group.players.map((player, playerIndex) => (
+                                                <div 
+                                                    key={playerIndex} 
+                                                    className={`player-item ${
+                                                        swapMode ? 'swap-mode' : ''
+                                                    } ${
+                                                        selectedPlayer && 
+                                                        selectedPlayer.groupId === group.id && 
+                                                        selectedPlayer.player.tcKimlik === player.tcKimlik
+                                                            ? 'selected-for-swap' : ''
+                                                    } ${
+                                                        swapMode && 
+                                                        selectedPlayer && 
+                                                        selectedPlayer.groupId !== group.id
+                                                            ? 'can-swap' : ''
+                                                    }`}
+                                                    onClick={() => handlePlayerSelect(player, group.id)}
+                                                    title={
+                                                        swapMode 
+                                                            ? selectedPlayer && selectedPlayer.player.tcKimlik === player.tcKimlik
+                                                                ? 'Bu oyuncuyu değiştirmek için başka bir oyuncu seçin'
+                                                                : 'Bu oyuncu ile değiştirmek için tıklayın'
+                                                            : 'Oyuncu değiştirme modu için tıklayın'
+                                                    }
+                                                >
+                                                    <div className="player-name">{player.ad}</div>
+                                                    <div className="player-tc">{player.tcKimlik}</div>
+                                                    {swapMode && (
+                                                        <div className="swap-indicator">
+                                                            {selectedPlayer && selectedPlayer.player.tcKimlik === player.tcKimlik
+                                                                ? '🔄 Seçildi'
+                                                                : selectedPlayer && selectedPlayer.groupId !== group.id
+                                                                    ? '⬅️ Değiştir'
+                                                                    : '👆 Seç'
+                                                            }
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <div className="group-matches">
                                         <h5>Maçlar</h5>
                                         {group.matches.map(match => (
