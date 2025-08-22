@@ -1684,6 +1684,12 @@
   backdrop-filter: blur(10px);
 }
 
+.time-controls {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
 .court-buttons {
   display: flex;
   gap: 1rem;
@@ -1691,7 +1697,8 @@
 }
 
 .assign-courts-btn,
-.view-schedule-btn {
+.view-schedule-btn,
+.swap-matches-btn {
   padding: 12px 24px;
   border: none;
   border-radius: 10px;
@@ -1720,6 +1727,16 @@
 .view-schedule-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+.swap-matches-btn {
+  background: linear-gradient(135deg, #FF9800, #F57F17);
+  color: white;
+}
+
+.swap-matches-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
 }
 
 /* Court Schedule View Styles */
@@ -1760,6 +1777,52 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Schedule Controls */
+.schedule-controls {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.collapse-controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.collapse-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.collapse-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.expand-all {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.expand-all:hover {
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.collapse-all {
+  background: linear-gradient(135deg, #FF5722, #E64A19);
+  color: white;
+}
+
+.collapse-all:hover {
+  box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
+}
+
 .schedule-grid {
   display: flex;
   flex-direction: column;
@@ -1778,19 +1841,73 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 1rem 1.5rem;
   color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
 }
 
-.time-slot-header h4 {
+.time-slot-header:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6b4595 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.time-slot-header.clickable {
+  position: relative;
+}
+
+.time-slot-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.time-slot-title h4 {
   margin: 0;
   font-size: 1.3rem;
   font-weight: 600;
 }
 
+.time-slot-stats {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.collapse-indicator {
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: transform 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-slot.collapsed .collapse-indicator {
+  transform: rotate(180deg);
+}
+
+.time-slot.collapsed .courts-grid {
+  display: none;
+}
+
+/* Courts Grid with Collapse Animation */
 .courts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
   padding: 1.5rem;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .court-card {
@@ -1910,6 +2027,64 @@
   opacity: 0.7;
 }
 
+/* Match Swap Styles */
+.match-swap-info {
+  background: rgba(255, 152, 0, 0.1);
+  border: 2px solid #FF9800;
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.match-swap-info .swap-mode-alert {
+  color: #E65100;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.court-card.swap-mode {
+  cursor: pointer;
+  border: 2px solid #FF9800;
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+}
+
+.court-card.swap-mode:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(255, 152, 0, 0.3);
+  border-color: #F57F17;
+}
+
+.court-card.selected-for-swap {
+  border: 3px solid #4CAF50 !important;
+  background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%) !important;
+  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4) !important;
+}
+
+.court-card.can-swap {
+  border: 2px solid #2196F3;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+}
+
+.court-card.can-swap:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(33, 150, 243, 0.3);
+  border-color: #1976D2;
+}
+
+.swap-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 10;
+}
+
 /* Schedule Summary */
 .schedule-summary {
   background: white;
@@ -1972,6 +2147,11 @@
     gap: 1rem;
   }
   
+  .time-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
   .court-info {
     flex-direction: column;
     gap: 0.5rem;
@@ -1982,7 +2162,8 @@
   }
   
   .assign-courts-btn,
-  .view-schedule-btn {
+  .view-schedule-btn,
+  .swap-matches-btn {
     width: 100%;
     padding: 14px;
     font-size: 0.95rem;
@@ -2029,5 +2210,62 @@
   
   .stat-item {
     padding: 0.8rem;
+  }
+  
+  /* Match swap mobile */
+  .match-swap-info {
+    padding: 0.8rem;
+    margin: 0.8rem 0;
+  }
+  
+  .match-swap-info .swap-mode-alert {
+    font-size: 0.9rem;
+  }
+  
+  .swap-indicator {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    top: 8px;
+    right: 8px;
+  }
+  
+  /* Time slot mobile */
+  .time-slot-header {
+    padding: 0.8rem 1rem;
+  }
+  
+  .time-slot-title h4 {
+    font-size: 1.1rem;
+  }
+  
+  .time-slot-stats {
+    font-size: 0.8rem;
+  }
+  
+  .collapse-indicator {
+    font-size: 1rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0.3rem;
+  }
+  
+  .courts-grid {
+    padding: 1rem;
+  }
+  
+  /* Schedule controls mobile */
+  .schedule-controls {
+    margin: 1rem 0;
+  }
+  
+  .collapse-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .collapse-btn {
+    padding: 12px;
+    font-size: 0.85rem;
+    width: 100%;
   }
 } 
