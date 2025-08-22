@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
 
-function AdminDashboard({ registeredUsers }) {
+function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
     // Admin authentication state
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
     const [adminPassword, setAdminPassword] = useState('');

@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-function Tournament({ registeredUsers }) {
+function Tournament({ registeredUsers, onDeleteUser }) {
     const [showFixture, setShowFixture] = useState(false);
     const [fixtures, setFixtures] = useState([]);
     const [selectedGender, setSelectedGender] = useState('male');
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    
+    // Admin yetki kontrolü
+    useEffect(() => {
+        const authStatus = localStorage.getItem('adminAuthenticated');
+        setIsAdminAuthenticated(authStatus === 'true');
+    }, []);
 
     // Cinsiyet bazlı katılımcıları filtrele
     const maleUsers = registeredUsers.filter(user => user.gender === 'male');
@@ -46,6 +53,18 @@ function Tournament({ registeredUsers }) {
         setShowFixture(true);
     };
 
+    // Kullanıcı silme fonksiyonu
+    const handleDeleteUser = (tcKimlik, userName) => {
+        if (!isAdminAuthenticated) {
+            alert('Bu işlem için admin yetkisi gereklidir!');
+            return;
+        }
+
+        if (window.confirm(`${userName} (${tcKimlik}) katılımcısını silmek istediğinizden emin misiniz?`)) {
+            onDeleteUser(tcKimlik);
+        }
+    };
+
     return (
         <div className="tournament-container">
             <h3>Katılımcı Listesi</h3>
@@ -70,8 +89,19 @@ function Tournament({ registeredUsers }) {
                 <div className="registered-users">
                     {(selectedGender === 'male' ? maleUsers : femaleUsers).map((user, index) => (
                         <div key={index} className="user-item">
-                            <span className="user-name">{user.ad}</span>
-                            <span className="user-tc">{user.tcKimlik}</span>
+                            <div className="user-info">
+                                <span className="user-name">{user.ad}</span>
+                                <span className="user-tc">{user.tcKimlik}</span>
+                            </div>
+                            {isAdminAuthenticated && (
+                                <button 
+                                    className="delete-user-btn"
+                                    onClick={() => handleDeleteUser(user.tcKimlik, user.ad)}
+                                    title="Katılımcıyı Sil"
+                                >
+                                    🗑️
+                                </button>
+                            )}
                         </div>
                     ))}
                     {(selectedGender === 'male' ? maleUsers : femaleUsers).length === 0 && (

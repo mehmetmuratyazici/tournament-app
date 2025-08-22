@@ -25,16 +25,42 @@ function App() {
     setRegisteredUsers([...registeredUsers, userData]);
   };
 
+  // Toplu kayıt için ayrı fonksiyon
+  const handleBulkRegister = (userDataArray) => {
+    setRegisteredUsers(prevUsers => [...prevUsers, ...userDataArray]);
+  };
+
+  // Kullanıcı silme fonksiyonu
+  const handleDeleteUser = (tcKimlik) => {
+    setRegisteredUsers(prevUsers => prevUsers.filter(user => user.tcKimlik !== tcKimlik));
+  };
+
+  // Kullanıcı güncelleme fonksiyonu
+  const handleUpdateUser = (tcKimlik, updatedUserData) => {
+    setRegisteredUsers(prevUsers => 
+      prevUsers.map(user => 
+        user.tcKimlik === tcKimlik ? { ...user, ...updatedUserData } : user
+      )
+    );
+  };
+
   const renderCurrentView = () => {
     switch(currentView) {
       case 'register':
-        return <Register onRegister={handleRegister} />;
+        return <Register onRegister={handleRegister} onBulkRegister={handleBulkRegister} />;
       case 'tournament':
-        return <Tournament registeredUsers={registeredUsers} />;
+        return <Tournament 
+          registeredUsers={registeredUsers} 
+          onDeleteUser={handleDeleteUser}
+        />;
       case 'admin':
-        return <AdminDashboard registeredUsers={registeredUsers} />;
+        return <AdminDashboard 
+          registeredUsers={registeredUsers} 
+          onDeleteUser={handleDeleteUser}
+          onUpdateUser={handleUpdateUser}
+        />;
       default:
-        return <Register onRegister={handleRegister} />;
+        return <Register onRegister={handleRegister} onBulkRegister={handleBulkRegister} />;
     }
   };
 
