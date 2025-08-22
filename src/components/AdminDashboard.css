@@ -1608,4 +1608,426 @@
     .edit-user-modal .modal-buttons {
         flex-direction: column;
     }
+}
+
+/* Court Assignment Styles */
+.court-assignment-controls {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+  border-radius: 16px;
+  margin: 2rem 0;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.court-controls-header h4 {
+  color: white;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.court-settings {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.time-setting {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.time-setting label {
+  color: white;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.time-setting input[type="time"] {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.time-setting input[type="time"]:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+}
+
+.court-info {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.court-info span {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.court-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.assign-courts-btn,
+.view-schedule-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.assign-courts-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.assign-courts-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
+.view-schedule-btn {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+}
+
+.view-schedule-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+/* Court Schedule View Styles */
+.court-schedule-view {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem;
+  border-radius: 16px;
+  margin: 2rem 0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.schedule-header h3 {
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.schedule-info {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.schedule-info span {
+  background: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  color: #2c3e50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.time-slot {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.time-slot-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1rem 1.5rem;
+  color: white;
+}
+
+.time-slot-header h4 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.courts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.court-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.court-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+}
+
+.court-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.court-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.court-status {
+  font-size: 1.2rem;
+}
+
+.court-match {
+  text-align: center;
+}
+
+.match-type {
+  margin-bottom: 1rem;
+}
+
+.type-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.type-badge.group {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.type-badge.elimination {
+  background: linear-gradient(135deg, #FF9800, #F57F17);
+  color: white;
+}
+
+.type-badge.competition {
+  background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+  color: white;
+}
+
+.match-players {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1rem 0;
+  gap: 0.5rem;
+}
+
+.match-players .player {
+  flex: 1;
+  font-weight: 600;
+  color: #2c3e50;
+  padding: 8px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.match-players .vs {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 0.8rem;
+}
+
+.match-id {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin: 0.8rem 0;
+  font-weight: 500;
+}
+
+.match-completed {
+  color: #4CAF50;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.court-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.court-empty span {
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
+/* Schedule Summary */
+.schedule-summary {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.schedule-summary h4 {
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.stat-label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.stat-value {
+  font-weight: 700;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+/* Mobile Responsive for Court Assignment */
+@media (max-width: 768px) {
+  /* Court Assignment Mobile */
+  .court-assignment-controls {
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+  
+  .court-controls-header h4 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .court-settings {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .court-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .court-buttons {
+    flex-direction: column;
+  }
+  
+  .assign-courts-btn,
+  .view-schedule-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 0.95rem;
+  }
+  
+  /* Court Schedule Mobile */
+  .court-schedule-view {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .schedule-header h3 {
+    font-size: 1.5rem;
+  }
+  
+  .schedule-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .courts-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .court-card {
+    padding: 1rem;
+  }
+  
+  .match-players {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  
+  .match-players .player {
+    font-size: 0.85rem;
+    padding: 6px;
+  }
+  
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-item {
+    padding: 0.8rem;
+  }
 } 

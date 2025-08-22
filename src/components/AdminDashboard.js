@@ -11,6 +11,20 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [swapMode, setSwapMode] = useState(false);
     
+    // Court assignment state
+    const [courtAssignmentMode, setCourtAssignmentMode] = useState(false);
+    const [startTime, setStartTime] = useState('09:00');
+    const [showCourtSchedule, setShowCourtSchedule] = useState(false);
+    const [courtSchedule, setCourtSchedule] = useState({});
+    
+    // Kort bilgileri - 4 kort
+    const courts = [
+        { id: 1, name: 'Kort 1' },
+        { id: 2, name: 'Kort 2' },
+        { id: 3, name: 'Kort 3' },
+        { id: 4, name: 'Kort 4' }
+    ];
+    
     // Admin password hash - in a real app this would be stored securely
     const ADMIN_PASSWORD_HASH = '5ebe655f'; // Huseyin61
 
@@ -231,7 +245,7 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
         
         // Grup boyutlarını al
         const groupSizes = calculateGroupSizes(totalParticipants, maxPlayersPerGroup);
-        debugger;
+        
         if (groupSizes.length === 0) {
             return [];
         }
@@ -778,6 +792,137 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
             }
         }
     };
+    
+    // Zaman hesaplama fonksiyonu (saatleri dakikaya çevir)
+    const timeToMinutes = (timeStr) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+    
+    // Dakikaları saate çevir
+    const minutesToTime = (minutes) => {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    };
+    
+    // Maçları kortlara yerleştir ve zaman çizelgesi oluştur
+    const assignCourtsAndSchedule = () => {
+        if (!isAdminAuthenticated) {
+            alert('Bu işlem için admin yetkisi gereklidir!');
+            return;
+        }
+        
+        const tournament = tournaments[selectedGender];
+        if (!tournament.isActive) {
+            alert('Önce turnuvayı başlatın!');
+            return;
+        }
+        
+        let allMatches = [];
+        let matchIdCounter = 1;
+        
+        // Tüm maçları topla
+        if (tournament.phase === 'groups') {
+            // Grup maçları
+            tournament.groups.forEach((group, groupIndex) => {
+                group.matches.forEach((match, matchIndex) => {
+                    allMatches.push({
+                        id: `group-${group.id}-${match.id}`,
+                        displayId: matchIdCounter++,
+                        type: 'group',
+                        groupId: group.id,
+                        groupName: `Grup ${group.id}`,
+                        player1: match.player1,
+                        player2: match.player2,
+                        isPlayed: match.isPlayed,
+                        originalMatch: match
+                    });
+                });
+            });
+        } else if (tournament.phase === 'elimination') {
+            // Eleme maçları
+            if (tournament.eliminationRounds && tournament.eliminationRounds.length > 0) {
+                tournament.eliminationRounds.forEach((round, roundIndex) => {
+                    round.forEach((match, matchIndex) => {
+                        if (match.player2) { // Bay geçen maçları dahil etme
+                            allMatches.push({
+                                id: `elim-${roundIndex}-${match.id}`,
+                                displayId: matchIdCounter++,
+                                type: 'elimination',
+                                roundName: `Eleme Turu ${roundIndex + 1}`,
+                                player1: match.player1,
+                                player2: match.player2,
+                                isPlayed: match.isPlayed,
+                                originalMatch: match
+                            });
+                        }
+                    });
+                });
+            }
+            
+            // Competition maçları
+            if (tournament.competitionRounds && tournament.competitionRounds.length > 0) {
+                tournament.competitionRounds.forEach((round, roundIndex) => {
+                    round.forEach((match, matchIndex) => {
+                        if (match.player2) { // Bay geçen maçları dahil etme
+                            allMatches.push({
+                                id: `comp-${roundIndex}-${match.id}`,
+                                displayId: matchIdCounter++,
+                                type: 'competition',
+                                roundName: `Competition Turu ${roundIndex + 1}`,
+                                player1: match.player1,
+                                player2: match.player2,
+                                isPlayed: match.isPlayed,
+                                originalMatch: match
+                            });
+                        }
+                    });
+                });
+            }
+        }
+        
+        if (allMatches.length === 0) {
+            alert('Henüz maç bulunmuyor!');
+            return;
+        }
+        
+        // Kort yerleşimi algoritması
+        const schedule = {};
+        const courtCount = courts.length;
+        let currentTime = timeToMinutes(startTime);
+        
+        // Her zaman dilimi için kortları başlatma
+        for (let i = 0; i < allMatches.length; i += courtCount) {
+            const matchBatch = allMatches.slice(i, i + courtCount);
+            const timeSlot = minutesToTime(currentTime);
+            
+            schedule[timeSlot] = {
+                startTime: timeSlot,
+                endTime: minutesToTime(currentTime + 60), // Her maç 1 saat
+                courts: {}
+            };
+            
+            // Bu zaman dilimindeki maçları kortlara yerleştir
+            matchBatch.forEach((match, courtIndex) => {
+                const court = courts[courtIndex];
+                schedule[timeSlot].courts[court.id] = {
+                    courtId: court.id,
+                    courtName: court.name,
+                    match: match
+                };
+            });
+            
+            // Bir sonraki zaman dilimine geç
+            currentTime += 60; // 1 saat ekle
+        }
+        
+        setCourtSchedule(schedule);
+        setShowCourtSchedule(true);
+        setCourtAssignmentMode(false);
+        
+        console.log('Kort çizelgesi oluşturuldu:', schedule);
+    };
 
     const currentTournament = tournaments[selectedGender];
 
@@ -885,6 +1030,50 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                     )}
                 </div>
 
+                {/* Kort Yerleşimi Kontrolleri */}
+                {isAdminAuthenticated && currentTournament.isActive && (
+                    <div className="court-assignment-controls">
+                        <div className="court-controls-header">
+                            <h4>🎾 Kort Yerleşimi ve Zaman Çizelgesi</h4>
+                        </div>
+                        
+                        <div className="court-settings">
+                            <div className="time-setting">
+                                <label htmlFor="start-time">Başlangıç Saati:</label>
+                                <input
+                                    id="start-time"
+                                    type="time"
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                />
+                            </div>
+                            
+                            <div className="court-info">
+                                <span>📍 Toplam {courts.length} kort mevcut</span>
+                                <span>⏱️ Her maç 1 saat sürecek</span>
+                            </div>
+                        </div>
+                        
+                        <div className="court-buttons">
+                            <button 
+                                className="assign-courts-btn"
+                                onClick={assignCourtsAndSchedule}
+                            >
+                                🏟️ Kortları Yerleştir ve Çizelge Oluştur
+                            </button>
+                            
+                            {Object.keys(courtSchedule).length > 0 && (
+                                <button 
+                                    className="view-schedule-btn"
+                                    onClick={() => setShowCourtSchedule(!showCourtSchedule)}
+                                >
+                                    {showCourtSchedule ? '📋 Çizelgeyi Gizle' : '📋 Çizelgeyi Göster'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {isAdminAuthenticated && (
                     <button 
                         className="clear-data-btn"
@@ -938,6 +1127,104 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                         <div className="modal-buttons">
                             <button onClick={createTournament}>Turnuvayı Başlat</button>
                             <button onClick={() => setShowCreateTournament(false)}>İptal</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Kort Çizelgesi Görünümü */}
+            {showCourtSchedule && Object.keys(courtSchedule).length > 0 && (
+                <div className="court-schedule-view">
+                    <div className="schedule-header">
+                        <h3>🏟️ Kort Çizelgesi - {selectedGender === 'male' ? 'Erkek' : 'Kadın'} Turnuvası</h3>
+                        <div className="schedule-info">
+                            <span>📅 Başlangıç: {startTime}</span>
+                            <span>🎾 Toplam {courts.length} kort</span>
+                            <span>📊 {Object.keys(courtSchedule).length} zaman dilimi</span>
+                        </div>
+                    </div>
+
+                    <div className="schedule-grid">
+                        {Object.entries(courtSchedule).map(([timeSlot, timeData]) => (
+                            <div key={timeSlot} className="time-slot">
+                                <div className="time-slot-header">
+                                    <h4>⏰ {timeData.startTime} - {timeData.endTime}</h4>
+                                </div>
+                                
+                                <div className="courts-grid">
+                                    {courts.map(court => {
+                                        const courtMatch = timeData.courts[court.id];
+                                        return (
+                                            <div key={court.id} className="court-card">
+                                                <div className="court-header">
+                                                    <span className="court-name">{court.name}</span>
+                                                    <span className="court-status">
+                                                        {courtMatch ? '🎾' : '🚫'}
+                                                    </span>
+                                                </div>
+                                                
+                                                {courtMatch ? (
+                                                    <div className="court-match">
+                                                        <div className="match-type">
+                                                            {courtMatch.match.type === 'group' && (
+                                                                <span className="type-badge group">{courtMatch.match.groupName}</span>
+                                                            )}
+                                                            {courtMatch.match.type === 'elimination' && (
+                                                                <span className="type-badge elimination">{courtMatch.match.roundName}</span>
+                                                            )}
+                                                            {courtMatch.match.type === 'competition' && (
+                                                                <span className="type-badge competition">{courtMatch.match.roundName}</span>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        <div className="match-players">
+                                                            <div className="player">{courtMatch.match.player1.ad}</div>
+                                                            <div className="vs">VS</div>
+                                                            <div className="player">{courtMatch.match.player2.ad}</div>
+                                                        </div>
+                                                        
+                                                        <div className="match-id">Maç #{courtMatch.match.displayId}</div>
+                                                        
+                                                        {courtMatch.match.isPlayed && (
+                                                            <div className="match-completed">✅ Tamamlandı</div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="court-empty">
+                                                        <span>Boş</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="schedule-summary">
+                        <h4>📋 Özet</h4>
+                        <div className="summary-stats">
+                            <div className="stat-item">
+                                <span className="stat-label">Toplam Maç:</span>
+                                <span className="stat-value">
+                                    {Object.values(courtSchedule).reduce((total, timeData) => 
+                                        total + Object.keys(timeData.courts).length, 0
+                                    )}
+                                </span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-label">Tahmini Süre:</span>
+                                <span className="stat-value">
+                                    {Object.keys(courtSchedule).length} saat
+                                </span>
+                            </div>
+                            <div className="stat-item">
+                                <span className="stat-label">Bitiş Saati:</span>
+                                <span className="stat-value">
+                                    {Object.values(courtSchedule)[Object.keys(courtSchedule).length - 1]?.endTime || 'N/A'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
