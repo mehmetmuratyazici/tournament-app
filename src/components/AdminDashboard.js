@@ -1051,6 +1051,24 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
         }));
     };
     
+    // Tarih bazlı çizelgede time slot toggle fonksiyonu
+    const toggleDateTimeSlot = (date, timeSlot) => {
+        const key = `${date}-${timeSlot}`;
+        setCollapsedTimeSlots(prev => ({
+            ...prev,
+            [key]: !prev[key]
+        }));
+    };
+    
+    // Tarih bazlı çizelgede gün toggle fonksiyonu
+    const toggleDay = (date) => {
+        const key = `day-${date}`;
+        setCollapsedTimeSlots(prev => ({
+            ...prev,
+            [key]: !prev[key]
+        }));
+    };
+    
     // Hepsini aç/kapat fonksiyonları
     const expandAllTimeSlots = () => {
         setCollapsedTimeSlots({});
@@ -1063,6 +1081,30 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
             return acc;
         }, {});
         setCollapsedTimeSlots(allCollapsed);
+    };
+    
+    // Tarih bazlı çizelge için collapse all fonksiyonu
+    const collapseAllDateSchedule = () => {
+        if (!dateBasedSchedule || Object.keys(dateBasedSchedule).length === 0) return;
+        
+        const allCollapsed = {};
+        
+        // Tüm günleri kapat
+        Object.values(dateBasedSchedule).forEach(daySchedule => {
+            allCollapsed[`day-${daySchedule.date}`] = true;
+            
+            // Her günün tüm saat dilimlerini de kapat
+            Object.keys(daySchedule.timeSlots).forEach(timeSlot => {
+                allCollapsed[`${daySchedule.date}-${timeSlot}`] = true;
+            });
+        });
+        
+        setCollapsedTimeSlots(allCollapsed);
+    };
+    
+    // Tarih bazlı çizelge için expand all fonksiyonu
+    const expandAllDateSchedule = () => {
+        setCollapsedTimeSlots({});
     };
     
     // Hafta sonu kontrolü (Cumartesi = 6, Pazar = 0)
@@ -1875,6 +1917,23 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                             >
                                 {matchSwapMode ? '❌ Maç Değişimini İptal Et' : '🔄 Maç Değiştir'}
                             </button>
+                            
+                            <div className="date-collapse-controls">
+                                <button 
+                                    className="collapse-btn expand-all"
+                                    onClick={expandAllDateSchedule}
+                                    title="Tüm günleri ve saat dilimlerini aç"
+                                >
+                                    📂 Hepsini Aç
+                                </button>
+                                <button 
+                                    className="collapse-btn collapse-all"
+                                    onClick={collapseAllDateSchedule}
+                                    title="Tüm günleri ve saat dilimlerini kapat"
+                                >
+                                    📁 Hepsini Kapat
+                                </button>
+                            </div>
                         </div>
                         
                         {/* Maç Değiştirme Modu Bilgisi */}
@@ -1903,8 +1962,12 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                         {Object.values(dateBasedSchedule)
                             .sort((a, b) => new Date(a.date) - new Date(b.date))
                             .map((daySchedule) => (
-                            <div key={daySchedule.date} className="date-schedule-day">
-                                <div className="day-header">
+                            <div key={daySchedule.date} className={`date-schedule-day ${collapsedTimeSlots[`day-${daySchedule.date}`] ? 'collapsed' : ''}`}>
+                                <div 
+                                    className="day-header clickable"
+                                    onClick={() => toggleDay(daySchedule.date)}
+                                    title="Günü açmak/kapatmak için tıklayın"
+                                >
                                     <div className="day-info">
                                         <h4>{new Date(daySchedule.date).toLocaleDateString('tr-TR', { 
                                             weekday: 'long', 
@@ -1923,19 +1986,36 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                                         <span>⏳ {daySchedule.remainingMatches || 0} kalan</span>
                                         <span>📊 {daySchedule.capacity} kapasite</span>
                                     </div>
+                                    <div className="day-collapse-indicator">
+                                        {collapsedTimeSlots[`day-${daySchedule.date}`] ? '▼' : '▲'}
+                                    </div>
                                 </div>
                                 
-                                <div className="day-time-slots">
-                                    {Object.entries(daySchedule.timeSlots).map(([timeSlot, slotData]) => (
-                                        <div key={timeSlot} className="time-slot-day">
-                                            <div className="time-slot-header-day">
-                                                <h5>{slotData.startTime} - {slotData.endTime}</h5>
-                                                <span className="court-count">
-                                                    {Object.keys(slotData.courts).length}/{courts.length} kort
-                                                </span>
+                                {!collapsedTimeSlots[`day-${daySchedule.date}`] && (
+                                    <div className="day-time-slots">
+                                    {Object.entries(daySchedule.timeSlots).map(([timeSlot, slotData]) => {
+                                        const dateTimeKey = `${daySchedule.date}-${timeSlot}`;
+                                        const isCollapsed = collapsedTimeSlots[dateTimeKey];
+                                        return (
+                                        <div key={timeSlot} className={`time-slot-day ${isCollapsed ? 'collapsed' : ''}`}>
+                                            <div 
+                                                className="time-slot-header-day clickable"
+                                                onClick={() => toggleDateTimeSlot(daySchedule.date, timeSlot)}
+                                                title="Zaman dilimini açmak/kapatmak için tıklayın"
+                                            >
+                                                <div className="time-slot-title-day">
+                                                    <h5>{slotData.startTime} - {slotData.endTime}</h5>
+                                                    <span className="court-count">
+                                                        {Object.keys(slotData.courts).length}/{courts.length} kort
+                                                    </span>
+                                                </div>
+                                                <div className="collapse-indicator-day">
+                                                    {isCollapsed ? '▼' : '▲'}
+                                                </div>
                                             </div>
                                             
-                                            <div className="courts-grid-day">
+                                            {!isCollapsed && (
+                                                <div className="courts-grid-day">
                                                 {courts.map((court) => {
                                                     const courtData = slotData.courts[court.id];
                                                     return (
@@ -2042,10 +2122,13 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                                                         </div>
                                                     );
                                                 })}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    ))}
-                                </div>
+                                        );
+                                    })}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
