@@ -16,10 +16,30 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('18:00');
     const [showCourtSchedule, setShowCourtSchedule] = useState(false);
-    const [courtSchedule, setCourtSchedule] = useState({});
+    const [courtSchedule, setCourtSchedule] = useState(() => {
+        const saved = localStorage.getItem('courtSchedule');
+        return saved ? JSON.parse(saved) : {};
+    });
     const [matchSwapMode, setMatchSwapMode] = useState(false);
     const [selectedMatchForSwap, setSelectedMatchForSwap] = useState(null);
-    const [collapsedTimeSlots, setCollapsedTimeSlots] = useState({});
+    const [collapsedTimeSlots, setCollapsedTimeSlots] = useState(() => {
+        const saved = localStorage.getItem('collapsedTimeSlots');
+        return saved ? JSON.parse(saved) : {};
+    });
+    
+    // Date-based planning state
+    const [showDatePlanning, setShowDatePlanning] = useState(false);
+    const [showDateSchedule, setShowDateSchedule] = useState(false);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [weekdayStartTime, setWeekdayStartTime] = useState('18:00');
+    const [weekdayEndTime, setWeekdayEndTime] = useState('22:00');
+    const [weekendStartTime, setWeekendStartTime] = useState('09:00');
+    const [weekendEndTime, setWeekendEndTime] = useState('18:00');
+    const [dateBasedSchedule, setDateBasedSchedule] = useState(() => {
+        const saved = localStorage.getItem('dateBasedSchedule');
+        return saved ? JSON.parse(saved) : {};
+    });
     
     // Kort bilgileri - 4 kort
     const courts = [
@@ -126,6 +146,32 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
     useEffect(() => {
         localStorage.setItem('tournaments', JSON.stringify(tournaments));
     }, [tournaments]);
+
+    // Court schedule'ı localStorage'a kaydet
+    useEffect(() => {
+        if (Object.keys(courtSchedule).length > 0) {
+            localStorage.setItem('courtSchedule', JSON.stringify(courtSchedule));
+        }
+    }, [courtSchedule]);
+
+    // Collapsed time slots'ı localStorage'a kaydet
+    useEffect(() => {
+        localStorage.setItem('collapsedTimeSlots', JSON.stringify(collapsedTimeSlots));
+    }, [collapsedTimeSlots]);
+
+    // Date-based schedule'ı localStorage'a kaydet
+    useEffect(() => {
+        if (Object.keys(dateBasedSchedule).length > 0) {
+            localStorage.setItem('dateBasedSchedule', JSON.stringify(dateBasedSchedule));
+        }
+    }, [dateBasedSchedule]);
+
+    // Sayfa yüklendiğinde court schedule varsa göster
+    useEffect(() => {
+        if (Object.keys(courtSchedule).length > 0) {
+            setShowCourtSchedule(true);
+        }
+    }, []);
 
     const [selectedGender, setSelectedGender] = useState('male');
     const [groupSize, setGroupSize] = useState(4);
@@ -811,141 +857,59 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
     };
     
     // Maçları kortlara yerleştir ve zaman çizelgesi oluştur
+    // Gelişmiş Kort Çizelgesi - Tek Gün veya Tarih Aralığı
     const assignCourtsAndSchedule = () => {
         if (!isAdminAuthenticated) {
             alert('Bu işlem için admin yetkisi gereklidir!');
             return;
         }
-        
-        const tournament = tournaments[selectedGender];
-        if (!tournament.isActive) {
-            alert('Önce turnuvayı başlatın!');
+
+        // Eğer tarih aralığı seçilmişse, tarih bazlı planlama yap
+        if (startDate && endDate) {
+            createDateBasedSchedule();
             return;
         }
-        
-        // Zaman validasyonu
+
+        // Tek gün için basit planlama (eski sistem)
         const startMinutes = timeToMinutes(startTime);
         const endMinutes = timeToMinutes(endTime);
-        
-        if (startMinutes >= endMinutes) {
+
+        if (endMinutes <= startMinutes) {
             alert('Bitiş saati başlangıç saatinden sonra olmalıdır!');
             return;
         }
-        
+
         const availableHours = Math.floor((endMinutes - startMinutes) / 60);
         if (availableHours < 1) {
-            alert('En az 1 saatlik bir zaman aralığı belirlemelisiniz!');
+            alert('En az 1 saat süre olmalıdır!');
             return;
         }
-        
-        let allMatches = [];
-        let matchIdCounter = 1;
-        
-        // Tüm maçları topla
-        if (tournament.phase === 'groups') {
-            // Grup maçları
-            tournament.groups.forEach((group, groupIndex) => {
-                group.matches.forEach((match, matchIndex) => {
-                    allMatches.push({
-                        id: `group-${group.id}-${match.id}`,
-                        displayId: matchIdCounter++,
-                        type: 'group',
-                        groupId: group.id,
-                        groupName: `Grup ${group.id}`,
-                        player1: match.player1,
-                        player2: match.player2,
-                        isPlayed: match.isPlayed,
-                        originalMatch: match
-                    });
-                });
-            });
-        } else if (tournament.phase === 'elimination') {
-            // Eleme maçları
-            if (tournament.eliminationRounds && tournament.eliminationRounds.length > 0) {
-                tournament.eliminationRounds.forEach((round, roundIndex) => {
-                    round.forEach((match, matchIndex) => {
-                        if (match.player2) { // Bay geçen maçları dahil etme
-                            allMatches.push({
-                                id: `elim-${roundIndex}-${match.id}`,
-                                displayId: matchIdCounter++,
-                                type: 'elimination',
-                                roundName: `Eleme Turu ${roundIndex + 1}`,
-                                player1: match.player1,
-                                player2: match.player2,
-                                isPlayed: match.isPlayed,
-                                originalMatch: match
-                            });
-                        }
-                    });
-                });
-            }
-            
-            // Competition maçları
-            if (tournament.competitionRounds && tournament.competitionRounds.length > 0) {
-                tournament.competitionRounds.forEach((round, roundIndex) => {
-                    round.forEach((match, matchIndex) => {
-                        if (match.player2) { // Bay geçen maçları dahil etme
-                            allMatches.push({
-                                id: `comp-${roundIndex}-${match.id}`,
-                                displayId: matchIdCounter++,
-                                type: 'competition',
-                                roundName: `Competition Turu ${roundIndex + 1}`,
-                                player1: match.player1,
-                                player2: match.player2,
-                                isPlayed: match.isPlayed,
-                                originalMatch: match
-                            });
-                        }
-                    });
-                });
-            }
-        }
-        
-        if (allMatches.length === 0) {
-            alert('Henüz maç bulunmuyor!');
-            return;
-        }
-        
-        // Maksimum maç kapasitesi hesapla
+
+        // Tüm maçları al (oynanmış + oynanmamış)
+        const allMatches = getAllMatches();
         const maxMatchesInTimeRange = availableHours * courts.length;
         
         if (allMatches.length > maxMatchesInTimeRange) {
             const recommendedEndTime = minutesToTime(startMinutes + Math.ceil(allMatches.length / courts.length) * 60);
-            alert(`Belirlenen zaman aralığında ${allMatches.length} maç sığmayacak! 
-                   Maksimum ${maxMatchesInTimeRange} maç yerleştirilebilir.
-                   
-                   Önerilen bitiş saati: ${recommendedEndTime}
-                   
-                   Şimdi sadece ilk ${maxMatchesInTimeRange} maç yerleştirilecek.`);
-            
-            // Sadece sığan maçları al
-            allMatches = allMatches.slice(0, maxMatchesInTimeRange);
+            alert(`Uyarı: ${allMatches.length} maç için önerilen bitiş saati: ${recommendedEndTime}. Fazla maçlar kesilecek.`);
         }
-        
-        // Kort yerleşimi algoritması
+
+        const matchesToSchedule = allMatches.slice(0, maxMatchesInTimeRange);
+
+        // Çizelge oluştur
         const schedule = {};
-        const courtCount = courts.length;
-        let currentTime = timeToMinutes(startTime);
+        let currentTime = startMinutes;
         
-        // Her zaman dilimi için kortları başlatma
-        for (let i = 0; i < allMatches.length; i += courtCount) {
-            // Zaman sınırını kontrol et
-            if (currentTime + 60 > endMinutes) {
-                alert(`Kalan maçlar belirlenen bitiş saatine (${endTime}) sığmadı!
-                       ${Math.floor(i / courtCount) + 1}. zaman dilimine kadar yerleştirilen maçlar: ${i}`);
-                break;
-            }
-            
-            const matchBatch = allMatches.slice(i, i + courtCount);
+        for (let i = 0; i < matchesToSchedule.length; i += courts.length) {
+            const matchBatch = matchesToSchedule.slice(i, i + courts.length);
             const timeSlot = minutesToTime(currentTime);
             
             schedule[timeSlot] = {
                 startTime: timeSlot,
-                endTime: minutesToTime(currentTime + 60), // Her maç 1 saat
+                endTime: minutesToTime(currentTime + 60),
                 courts: {}
             };
             
-            // Bu zaman dilimindeki maçları kortlara yerleştir
             matchBatch.forEach((match, courtIndex) => {
                 const court = courts[courtIndex];
                 schedule[timeSlot].courts[court.id] = {
@@ -955,15 +919,16 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                 };
             });
             
-            // Bir sonraki zaman dilimine geç
-            currentTime += 60; // 1 saat ekle
+            currentTime += 60;
         }
         
         setCourtSchedule(schedule);
         setShowCourtSchedule(true);
-        setCourtAssignmentMode(false);
         
-        console.log('Kort çizelgesi oluşturuldu:', schedule);
+        // Date-based schedule'ı temizle çünkü tek gün modundayız
+        setDateBasedSchedule({});
+        
+        console.log('Tek gün kort çizelgesi oluşturuldu:', schedule);
     };
     
     // Maç değiştirme fonksiyonu
@@ -1018,6 +983,66 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
         }
     };
     
+    // Tarih bazlı çizelgede maç değiştirme fonksiyonu
+    const swapDateScheduleMatches = (match1Info, match2Info) => {
+        if (!isAdminAuthenticated) {
+            alert('Bu işlem için admin yetkisi gereklidir!');
+            return;
+        }
+
+        const newSchedule = { ...dateBasedSchedule };
+        
+        // İlk maçın yerini al
+        const date1 = match1Info.date;
+        const time1 = match1Info.timeSlot;
+        const court1 = match1Info.courtId;
+        const match1 = newSchedule[date1].timeSlots[time1].courts[court1].match;
+        
+        // İkinci maçın yerini al
+        const date2 = match2Info.date;
+        const time2 = match2Info.timeSlot;
+        const court2 = match2Info.courtId;
+        const match2 = newSchedule[date2].timeSlots[time2].courts[court2].match;
+        
+        // Maçları yer değiştir
+        newSchedule[date1].timeSlots[time1].courts[court1].match = match2;
+        newSchedule[date2].timeSlots[time2].courts[court2].match = match1;
+        
+        setDateBasedSchedule(newSchedule);
+        setMatchSwapMode(false);
+        setSelectedMatchForSwap(null);
+        
+        console.log('Tarih bazlı çizelgede maçlar değiştirildi:', {
+            match1: `${typeof match1.player1 === 'object' ? match1.player1.ad : match1.player1} vs ${typeof match1.player2 === 'object' ? match1.player2.ad : match1.player2}`,
+            match2: `${typeof match2.player1 === 'object' ? match2.player1.ad : match2.player1} vs ${typeof match2.player2 === 'object' ? match2.player2.ad : match2.player2}`,
+            oldPositions: { date1, time1, court1, date2, time2, court2 }
+        });
+    };
+    
+    // Tarih bazlı çizelgede maç seçme fonksiyonu
+    const handleDateScheduleMatchSelect = (date, timeSlot, courtId, match) => {
+        if (!isAdminAuthenticated || !matchSwapMode) return;
+        
+        const matchInfo = { date, timeSlot, courtId, match };
+        
+        if (!selectedMatchForSwap) {
+            // İlk maç seçildi
+            setSelectedMatchForSwap(matchInfo);
+        } else {
+            // İkinci maç seçildi
+            if (selectedMatchForSwap.date === date && 
+                selectedMatchForSwap.timeSlot === timeSlot && 
+                selectedMatchForSwap.courtId === courtId) {
+                // Aynı maç seçildi, iptal et
+                setSelectedMatchForSwap(null);
+                setMatchSwapMode(false);
+            } else {
+                // Farklı maç seçildi, değiştir
+                swapDateScheduleMatches(selectedMatchForSwap, matchInfo);
+            }
+        }
+    };
+    
     // Time slot toggle fonksiyonu
     const toggleTimeSlot = (timeSlot) => {
         setCollapsedTimeSlots(prev => ({
@@ -1038,6 +1063,230 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
             return acc;
         }, {});
         setCollapsedTimeSlots(allCollapsed);
+    };
+    
+    // Hafta sonu kontrolü (Cumartesi = 6, Pazar = 0)
+    const isWeekend = (date) => {
+        const day = new Date(date).getDay();
+        return day === 0 || day === 6;
+    };
+    
+    // Tarih aralığındaki günleri hesapla
+    const getDateRange = (start, end) => {
+        const dates = [];
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            dates.push(new Date(d));
+        }
+        return dates;
+    };
+    
+    // Bir günde kaç maç sığar hesapla
+    const getMatchCapacityForDate = (date) => {
+        const weekend = isWeekend(date);
+        const startTime = weekend ? weekendStartTime : weekdayStartTime;
+        const endTime = weekend ? weekendEndTime : weekdayEndTime;
+        
+        const startMinutes = timeToMinutes(startTime);
+        const endMinutes = timeToMinutes(endTime);
+        const availableHours = Math.floor((endMinutes - startMinutes) / 60);
+        
+        return availableHours * courts.length;
+    };
+    
+    // Tüm maçları getir (oynanmış ve oynanmamış)
+    const getAllMatches = () => {
+        const tournament = tournaments[selectedGender];
+        if (!tournament.isActive) return [];
+        
+        let allMatches = [];
+        let matchIdCounter = 1;
+        
+        // Grup maçları
+        if (tournament.groups && tournament.groups.length > 0) {
+            tournament.groups.forEach((group) => {
+                group.matches.forEach((match) => {
+                    if (match.player2) { // Sadece iki oyunculu maçları dahil et
+                        allMatches.push({
+                            id: `group-${group.id}-${match.id}`,
+                            displayId: matchIdCounter++,
+                            type: 'group',
+                            groupId: group.id,
+                            groupName: `Grup ${group.id}`,
+                            player1: match.player1,
+                            player2: match.player2,
+                            originalMatch: match,
+                            isPlayed: match.isPlayed || false,
+                            result: match.result || null
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Eleme maçları
+        if (tournament.eliminationRounds && tournament.eliminationRounds.length > 0) {
+            tournament.eliminationRounds.forEach((round, roundIndex) => {
+                round.forEach((match) => {
+                    if (match.player2) { // Sadece iki oyunculu maçları dahil et
+                        allMatches.push({
+                            id: `elim-${roundIndex}-${match.id}`,
+                            displayId: matchIdCounter++,
+                            type: 'elimination',
+                            roundName: `Eleme Turu ${roundIndex + 1}`,
+                            player1: match.player1,
+                            player2: match.player2,
+                            originalMatch: match,
+                            isPlayed: match.isPlayed || false,
+                            result: match.result || null
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Competition maçları
+        if (tournament.competitionRounds && tournament.competitionRounds.length > 0) {
+            tournament.competitionRounds.forEach((round, roundIndex) => {
+                round.forEach((match) => {
+                    if (match.player2) { // Sadece iki oyunculu maçları dahil et
+                        allMatches.push({
+                            id: `comp-${roundIndex}-${match.id}`,
+                            displayId: matchIdCounter++,
+                            type: 'competition',
+                            roundName: `Competition Turu ${roundIndex + 1}`,
+                            player1: match.player1,
+                            player2: match.player2,
+                            originalMatch: match,
+                            isPlayed: match.isPlayed || false,
+                            result: match.result || null
+                        });
+                    }
+                });
+            });
+        }
+        
+        return allMatches;
+    };
+    
+    // Geriye kalan (oynanmamış) maçları getir
+    const getRemainingMatches = () => {
+        return getAllMatches().filter(match => !match.isPlayed);
+    };
+    
+    // Tarih bazlı planlama oluştur (TÜM maçlar için)
+    const createDateBasedSchedule = () => {
+        if (!isAdminAuthenticated) {
+            alert('Bu işlem için admin yetkisi gereklidir!');
+            return;
+        }
+        
+        if (!startDate || !endDate) {
+            alert('Başlangıç ve bitiş tarihlerini seçin!');
+            return;
+        }
+        
+        if (new Date(startDate) >= new Date(endDate)) {
+            alert('Bitiş tarihi başlangıç tarihinden sonra olmalıdır!');
+            return;
+        }
+        
+        const allMatches = getAllMatches();
+        if (allMatches.length === 0) {
+            alert('Planlama için maç bulunmuyor!');
+            return;
+        }
+        
+        const dateRange = getDateRange(startDate, endDate);
+        const schedule = {};
+        let matchIndex = 0;
+        
+        // Her güne maçları dağıt
+        for (const date of dateRange) {
+            if (matchIndex >= allMatches.length) break;
+            
+            const dateStr = date.toISOString().split('T')[0];
+            const capacity = getMatchCapacityForDate(date);
+            const weekend = isWeekend(date);
+            
+            const dayMatches = allMatches.slice(matchIndex, matchIndex + capacity);
+            if (dayMatches.length === 0) continue;
+            
+            const dayStartTime = weekend ? weekendStartTime : weekdayStartTime;
+            const dayEndTime = weekend ? weekendEndTime : weekdayEndTime;
+            
+            // Günün istatistiklerini hesapla
+            const playedCount = dayMatches.filter(match => match.isPlayed).length;
+            const remainingCount = dayMatches.filter(match => !match.isPlayed).length;
+            
+            schedule[dateStr] = {
+                date: dateStr,
+                dayName: date.toLocaleDateString('tr-TR', { weekday: 'long' }),
+                isWeekend: weekend,
+                startTime: dayStartTime,
+                endTime: dayEndTime,
+                capacity: capacity,
+                matches: dayMatches,
+                playedMatches: playedCount,
+                remainingMatches: remainingCount,
+                timeSlots: createTimeSlotsForDay(dayMatches, dayStartTime)
+            };
+            
+            matchIndex += dayMatches.length;
+        }
+        
+        // Tüm maçlar sığmadıysa uyarı
+        if (matchIndex < allMatches.length) {
+            const remainingCount = allMatches.length - matchIndex;
+            alert(`${remainingCount} maç belirlenen tarih aralığına sığmadı! Daha uzun bir tarih aralığı seçin.`);
+        }
+        
+        setDateBasedSchedule(schedule);
+        setShowDatePlanning(false);
+        
+        const totalPlayed = Object.values(schedule).reduce((sum, day) => sum + day.playedMatches, 0);
+        const totalRemaining = Object.values(schedule).reduce((sum, day) => sum + day.remainingMatches, 0);
+        
+        console.log('Tarih bazlı çizelge oluşturuldu:', {
+            schedule,
+            totalDays: Object.keys(schedule).length,
+            totalMatches: allMatches.length,
+            playedMatches: totalPlayed,
+            remainingMatches: totalRemaining
+        });
+    };
+    
+    // Bir gün için zaman dilimlerini oluştur
+    const createTimeSlotsForDay = (matches, startTime) => {
+        const timeSlots = {};
+        const courtCount = courts.length;
+        let currentTime = timeToMinutes(startTime);
+        
+        for (let i = 0; i < matches.length; i += courtCount) {
+            const matchBatch = matches.slice(i, i + courtCount);
+            const timeSlot = minutesToTime(currentTime);
+            
+            timeSlots[timeSlot] = {
+                startTime: timeSlot,
+                endTime: minutesToTime(currentTime + 60),
+                courts: {}
+            };
+            
+            matchBatch.forEach((match, courtIndex) => {
+                const court = courts[courtIndex];
+                timeSlots[timeSlot].courts[court.id] = {
+                    courtId: court.id,
+                    courtName: court.name,
+                    match: match
+                };
+            });
+            
+            currentTime += 60;
+        }
+        
+        return timeSlots;
     };
 
     const currentTournament = tournaments[selectedGender];
@@ -1154,36 +1403,147 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                         </div>
                         
                         <div className="court-settings">
-                            <div className="time-controls">
-                                <div className="time-setting">
-                                    <label htmlFor="start-time">Başlangıç Saati:</label>
-                                    <input
-                                        id="start-time"
-                                        type="time"
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                    />
-                                </div>
-                                
-                                <div className="time-setting">
-                                    <label htmlFor="end-time">Bitiş Saati:</label>
-                                    <input
-                                        id="end-time"
-                                        type="time"
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                    />
-                                </div>
+                            <div className="planning-mode-toggle">
+                                <button 
+                                    className={`mode-toggle-btn ${!startDate ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setStartDate('');
+                                        setEndDate('');
+                                    }}
+                                >
+                                    📅 Tek Gün
+                                </button>
+                                <button 
+                                    className={`mode-toggle-btn ${startDate ? 'active' : ''}`}
+                                    onClick={() => {
+                                        const today = new Date().toISOString().split('T')[0];
+                                        const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                                        setStartDate(today);
+                                        setEndDate(nextWeek);
+                                    }}
+                                >
+                                    📆 Tarih Aralığı
+                                </button>
                             </div>
-                            
-                            <div className="court-info">
-                                <span>📍 Toplam {courts.length} kort mevcut</span>
-                                <span>⏱️ Her maç 1 saat sürecek</span>
-                                <span>🕐 Süre: {timeToMinutes(endTime) > timeToMinutes(startTime) ? 
-                                    Math.floor((timeToMinutes(endTime) - timeToMinutes(startTime)) / 60) : 0} saat</span>
-                                <span>📊 Maksimum: {timeToMinutes(endTime) > timeToMinutes(startTime) ? 
-                                    Math.floor((timeToMinutes(endTime) - timeToMinutes(startTime)) / 60) * courts.length : 0} maç</span>
-                            </div>
+
+                            {/* Tek Gün Modu */}
+                            {!startDate && (
+                                <div className="single-day-controls">
+                                    <div className="time-controls">
+                                        <div className="time-setting">
+                                            <label htmlFor="start-time">Başlangıç Saati:</label>
+                                            <input
+                                                id="start-time"
+                                                type="time"
+                                                value={startTime}
+                                                onChange={(e) => setStartTime(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="time-setting">
+                                            <label htmlFor="end-time">Bitiş Saati:</label>
+                                            <input
+                                                id="end-time"
+                                                type="time"
+                                                value={endTime}
+                                                onChange={(e) => setEndTime(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="court-info">
+                                        <span>⚽ Toplam maçlar: {getAllMatches().length}</span>
+                                        <span>⏳ Kalan: {getRemainingMatches().length}</span>
+                                        <span>🏟️ Kort sayısı: {courts.length}</span>
+                                        <span>⏰ Süre: {
+                                            startTime && endTime && timeToMinutes(endTime) > timeToMinutes(startTime) ? 
+                                            Math.floor((timeToMinutes(endTime) - timeToMinutes(startTime)) / 60) + ' saat' : 
+                                            '0 saat'
+                                        }</span>
+                                        <span>📊 Kapasite: {
+                                            startTime && endTime && timeToMinutes(endTime) > timeToMinutes(startTime) ? 
+                                            Math.floor((timeToMinutes(endTime) - timeToMinutes(startTime)) / 60) * courts.length + ' maç' : 
+                                            '0 maç'
+                                        }</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tarih Aralığı Modu */}
+                            {startDate && (
+                                <div className="date-range-controls">
+                                    <div className="date-inputs">
+                                        <div className="date-input">
+                                            <label htmlFor="start-date">Başlangıç Tarihi:</label>
+                                            <input
+                                                id="start-date"
+                                                type="date"
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="date-input">
+                                            <label htmlFor="end-date">Bitiş Tarihi:</label>
+                                            <input
+                                                id="end-date"
+                                                type="date"
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="time-settings-compact">
+                                        <div className="weekday-settings-compact">
+                                            <h5>📅 Hafta İçi</h5>
+                                            <div className="time-inputs-compact">
+                                                <input
+                                                    type="time"
+                                                    value={weekdayStartTime}
+                                                    onChange={(e) => setWeekdayStartTime(e.target.value)}
+                                                />
+                                                <span>-</span>
+                                                <input
+                                                    type="time"
+                                                    value={weekdayEndTime}
+                                                    onChange={(e) => setWeekdayEndTime(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="weekend-settings-compact">
+                                            <h5>🏖️ Hafta Sonu</h5>
+                                            <div className="time-inputs-compact">
+                                                <input
+                                                    type="time"
+                                                    value={weekendStartTime}
+                                                    onChange={(e) => setWeekendStartTime(e.target.value)}
+                                                />
+                                                <span>-</span>
+                                                <input
+                                                    type="time"
+                                                    value={weekendEndTime}
+                                                    onChange={(e) => setWeekendEndTime(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="date-planning-info">
+                                        {startDate && endDate && (
+                                            <div className="preview-stats">
+                                                <span>📅 Gün sayısı: {getDateRange(startDate, endDate).length}</span>
+                                                <span>⚽ Toplam maçlar: {getAllMatches().length}</span>
+                                                <span>⏳ Kalan: {getRemainingMatches().length}</span>
+                                                <span>📊 Kapasite: {
+                                                    getDateRange(startDate, endDate).reduce((total, date) => 
+                                                        total + getMatchCapacityForDate(date), 0
+                                                    )
+                                                } maç</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         
                         <div className="court-buttons">
@@ -1191,34 +1551,59 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                                 className="assign-courts-btn"
                                 onClick={assignCourtsAndSchedule}
                             >
-                                🏟️ Kortları Yerleştir ve Çizelge Oluştur
+                                {startDate ? '📅 Tarih Çizelgesi Oluştur' : '🏟️ Kortları Yerleştir'}
                             </button>
                             
-                            {Object.keys(courtSchedule).length > 0 && (
+                            {(Object.keys(courtSchedule).length > 0 || Object.keys(dateBasedSchedule).length > 0) && (
                                 <>
                                     <button 
                                         className="view-schedule-btn"
-                                        onClick={() => setShowCourtSchedule(!showCourtSchedule)}
+                                        onClick={() => {
+                                            if (Object.keys(dateBasedSchedule).length > 0) {
+                                                setShowDateSchedule(!showDateSchedule);
+                                            } else {
+                                                setShowCourtSchedule(!showCourtSchedule);
+                                            }
+                                        }}
                                     >
-                                        {showCourtSchedule ? '📋 Çizelgeyi Gizle' : '📋 Çizelgeyi Göster'}
+                                        {(showCourtSchedule || showDateSchedule) ? '❌ Çizelgeyi Gizle' : '📋 Çizelgeyi Göster'}
                                     </button>
                                     
-                                    {showCourtSchedule && (
-                                        <button 
-                                            className="swap-matches-btn"
-                                            onClick={() => {
-                                                setMatchSwapMode(!matchSwapMode);
-                                                setSelectedMatchForSwap(null);
-                                            }}
-                                        >
-                                            {matchSwapMode ? '❌ Değiştirmeyi İptal Et' : '🔄 Maç Değiştir'}
-                                        </button>
-                                    )}
+                                    <button 
+                                        className="reset-schedule-btn"
+                                        onClick={() => {
+                                            if (window.confirm('Tüm çizelgeyi sıfırlamak istediğinizden emin misiniz?')) {
+                                                setCourtSchedule({});
+                                                setDateBasedSchedule({});
+                                                setShowCourtSchedule(false);
+                                                setShowDateSchedule(false);
+                                                setMatchSwapMode(false);
+                                                localStorage.removeItem('courtSchedule');
+                                                localStorage.removeItem('dateBasedSchedule');
+                                            }
+                                        }}
+                                    >
+                                        🗑️ Çizelgeyi Sıfırla
+                                    </button>
                                 </>
+                            )}
+                            
+                            {showCourtSchedule && Object.keys(courtSchedule).length > 0 && (
+                                <button 
+                                    className="swap-matches-btn"
+                                    onClick={() => {
+                                        setMatchSwapMode(!matchSwapMode);
+                                        setSelectedMatchForSwap(null);
+                                    }}
+                                >
+                                    {matchSwapMode ? '❌ Değiştirmeyi İptal Et' : '🔄 Maç Değiştir'}
+                                </button>
                             )}
                         </div>
                     </div>
                 )}
+
+
 
                 {isAdminAuthenticated && (
                     <button 
@@ -1278,8 +1663,8 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                 </div>
             )}
 
-            {/* Kort Çizelgesi Görünümü */}
-            {showCourtSchedule && Object.keys(courtSchedule).length > 0 && (
+            {/* Kort Çizelgesi Görünümü - Tek Gün */}
+            {showCourtSchedule && Object.keys(courtSchedule).length > 0 && !startDate && (
                 <div className="court-schedule-view">
                     <div className="schedule-header">
                         <h3>🏟️ Kort Çizelgesi - {selectedGender === 'male' ? 'Erkek' : 'Kadın'} Turnuvası</h3>
@@ -1463,6 +1848,206 @@ function AdminDashboard({ registeredUsers, onDeleteUser, onUpdateUser }) {
                                 </span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tarih Bazlı Çizelge Görüntüleme */}
+            {showDateSchedule && Object.keys(dateBasedSchedule).length > 0 && (
+                <div className="date-schedule-view">
+                    <div className="date-schedule-header">
+                        <h3>📅 Tarih Bazlı Maç Çizelgesi</h3>
+                        <div className="schedule-summary">
+                            <span>📊 Toplam {Object.keys(dateBasedSchedule).length} gün</span>
+                            <span>⚽ Toplam {
+                                Object.values(dateBasedSchedule).reduce((total, day) => total + day.matches.length, 0)
+                            } maç</span>
+                        </div>
+                        
+                        {/* Date Schedule Controls */}
+                        <div className="date-schedule-controls">
+                            <button 
+                                className="date-swap-matches-btn"
+                                onClick={() => {
+                                    setMatchSwapMode(!matchSwapMode);
+                                    setSelectedMatchForSwap(null);
+                                }}
+                            >
+                                {matchSwapMode ? '❌ Maç Değişimini İptal Et' : '🔄 Maç Değiştir'}
+                            </button>
+                        </div>
+                        
+                        {/* Maç Değiştirme Modu Bilgisi */}
+                        {matchSwapMode && (
+                            <div className="match-swap-info">
+                                <div className="swap-mode-alert">
+                                    🔄 <strong>Maç Değiştirme Modu Aktif</strong>
+                                    <br/>
+                                    {selectedMatchForSwap ? (
+                                        <span>
+                                            Seçilen maç: <strong>
+                                                {typeof selectedMatchForSwap.match.player1 === 'object' ? selectedMatchForSwap.match.player1.ad : selectedMatchForSwap.match.player1} vs {typeof selectedMatchForSwap.match.player2 === 'object' ? selectedMatchForSwap.match.player2.ad : selectedMatchForSwap.match.player2}
+                                            </strong> 
+                                            ({selectedMatchForSwap.timeSlot})
+                                            <br/>Değiştirmek istediğiniz maçı seçin
+                                        </span>
+                                    ) : (
+                                        'Değiştirmek istediğiniz ilk maçı seçin'
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="date-schedule-grid">
+                        {Object.values(dateBasedSchedule)
+                            .sort((a, b) => new Date(a.date) - new Date(b.date))
+                            .map((daySchedule) => (
+                            <div key={daySchedule.date} className="date-schedule-day">
+                                <div className="day-header">
+                                    <div className="day-info">
+                                        <h4>{new Date(daySchedule.date).toLocaleDateString('tr-TR', { 
+                                            weekday: 'long', 
+                                            year: 'numeric', 
+                                            month: 'long', 
+                                            day: 'numeric' 
+                                        })}</h4>
+                                        <span className={`day-type ${daySchedule.isWeekend ? 'weekend' : 'weekday'}`}>
+                                            {daySchedule.isWeekend ? '🏖️ Hafta Sonu' : '📅 Hafta İçi'}
+                                        </span>
+                                    </div>
+                                    <div className="day-stats">
+                                        <span>⏰ {daySchedule.startTime} - {daySchedule.endTime}</span>
+                                        <span>⚽ {daySchedule.matches.length} maç</span>
+                                        <span>✅ {daySchedule.playedMatches || 0} oynanmış</span>
+                                        <span>⏳ {daySchedule.remainingMatches || 0} kalan</span>
+                                        <span>📊 {daySchedule.capacity} kapasite</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="day-time-slots">
+                                    {Object.entries(daySchedule.timeSlots).map(([timeSlot, slotData]) => (
+                                        <div key={timeSlot} className="time-slot-day">
+                                            <div className="time-slot-header-day">
+                                                <h5>{slotData.startTime} - {slotData.endTime}</h5>
+                                                <span className="court-count">
+                                                    {Object.keys(slotData.courts).length}/{courts.length} kort
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="courts-grid-day">
+                                                {courts.map((court) => {
+                                                    const courtData = slotData.courts[court.id];
+                                                    return (
+                                                        <div 
+                                                            key={court.id} 
+                                                            className={`court-card-day ${
+                                                                matchSwapMode && courtData ? 'swap-mode' : ''
+                                                            } ${
+                                                                selectedMatchForSwap && 
+                                                                selectedMatchForSwap.date === daySchedule.date &&
+                                                                selectedMatchForSwap.timeSlot === timeSlot && 
+                                                                selectedMatchForSwap.courtId === court.id
+                                                                    ? 'selected-for-swap' : ''
+                                                            } ${
+                                                                matchSwapMode && 
+                                                                courtData && 
+                                                                selectedMatchForSwap && 
+                                                                !(selectedMatchForSwap.date === daySchedule.date &&
+                                                                  selectedMatchForSwap.timeSlot === timeSlot && 
+                                                                  selectedMatchForSwap.courtId === court.id)
+                                                                    ? 'can-swap' : ''
+                                                            }`}
+                                                            onClick={() => courtData && handleDateScheduleMatchSelect(daySchedule.date, timeSlot, court.id, courtData.match)}
+                                                            title={
+                                                                matchSwapMode && courtData
+                                                                    ? selectedMatchForSwap && 
+                                                                      selectedMatchForSwap.date === daySchedule.date &&
+                                                                      selectedMatchForSwap.timeSlot === timeSlot && 
+                                                                      selectedMatchForSwap.courtId === court.id
+                                                                        ? 'Bu maç seçildi, başka bir maç seçin'
+                                                                        : 'Bu maç ile değiştirmek için tıklayın'
+                                                                    : ''
+                                                            }
+                                                        >
+                                                            <div className="court-header-day">
+                                                                <span className="court-name-day">{court.name}</span>
+                                                                {courtData ? (
+                                                                    <span className="court-status-day occupied">🏓</span>
+                                                                ) : (
+                                                                    <span className="court-status-day empty">➖</span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {courtData ? (
+                                                                <div className={`court-match-day ${courtData.match.isPlayed ? 'played' : 'pending'}`}>
+                                                                    {/* Swap Indicator */}
+                                                                    {matchSwapMode && (
+                                                                        <div className="swap-indicator">
+                                                                            {selectedMatchForSwap && 
+                                                                             selectedMatchForSwap.date === daySchedule.date &&
+                                                                             selectedMatchForSwap.timeSlot === timeSlot && 
+                                                                             selectedMatchForSwap.courtId === court.id
+                                                                                ? '✅ SEÇİLDİ' 
+                                                                                : '🔄 DEĞİŞTİR'}
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    <div className="match-type-day">
+                                                                        <span className={`type-badge ${courtData.match.type}`}>
+                                                                            {courtData.match.type === 'group' ? 'Grup' : 
+                                                                             courtData.match.type === 'elimination' ? 'Eleme' : 'Competition'}
+                                                                        </span>
+                                                                        {courtData.match.isPlayed && (
+                                                                            <span className="match-status played">✅ Oynanmış</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    <div className="match-players-day">
+                                                                        <span className="player">
+                                                                            {typeof courtData.match.player1 === 'object' ? courtData.match.player1.ad : courtData.match.player1}
+                                                                        </span>
+                                                                        <span className="vs">VS</span>
+                                                                        <span className="player">
+                                                                            {typeof courtData.match.player2 === 'object' ? courtData.match.player2.ad : courtData.match.player2}
+                                                                        </span>
+                                                                    </div>
+                                                                    
+                                                                    {courtData.match.isPlayed && courtData.match.result && (
+                                                                        <div className="match-result">
+                                                                            <span className="result-score">
+                                                                                {courtData.match.result.player1Score} - {courtData.match.result.player2Score}
+                                                                            </span>
+                                                                            <span className="winner">
+                                                                                🏆 {courtData.match.result.winner}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    <div className="match-details">
+                                                                        {courtData.match.groupName && (
+                                                                            <span className="group-name">{courtData.match.groupName}</span>
+                                                                        )}
+                                                                        {courtData.match.roundName && (
+                                                                            <span className="round-name">{courtData.match.roundName}</span>
+                                                                        )}
+                                                                        <span className="match-id">#{courtData.match.displayId}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="court-empty-day">
+                                                                    <span>Boş</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
