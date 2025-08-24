@@ -4,7 +4,8 @@ function Register({ onRegister, onBulkRegister }) {
     const [formData, setFormData] = useState({
         tcKimlik: '',
         ad: '',
-        gender: 'male'
+        gender: 'male',
+        league: ''
     });
 
     const [errors, setErrors] = useState({});
@@ -57,6 +58,10 @@ function Register({ onRegister, onBulkRegister }) {
             newErrors.ad = 'Ad zorunludur';
         }
 
+        if (!formData.league.trim()) {
+            newErrors.league = 'Lig bilgisi zorunludur';
+        }
+
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length === 0) {
@@ -73,11 +78,12 @@ function Register({ onRegister, onBulkRegister }) {
             setSuccessMessage('Kayıt başarıyla tamamlandı!');
             onRegister(formData); // Kayıt bilgisini üst komponente gönder
             
-            setFormData({
-                tcKimlik: '',
-                ad: '',
-                gender: 'male'
-            });
+                            setFormData({
+                    tcKimlik: '',
+                    ad: '',
+                    gender: 'male',
+                    league: ''
+                });
 
             setTimeout(() => {
                 setSuccessMessage('');
@@ -95,12 +101,12 @@ function Register({ onRegister, onBulkRegister }) {
             const lineNumber = index + 1;
             const parts = line.split('-');
             
-            if (parts.length !== 3) {
-                parseErrors.push(`Satır ${lineNumber}: Format hatası. Doğru format: "ID-Ad Soyad-Cinsiyet"`);
+            if (parts.length !== 4) {
+                parseErrors.push(`Satır ${lineNumber}: Format hatası. Doğru format: "ID-Ad Soyad-Cinsiyet-Lig"`);
                 return;
             }
 
-            const [id, name, gender] = parts.map(part => part.trim());
+            const [id, name, gender, league] = parts.map(part => part.trim());
             
             // TC Kimlik kontrol
             if (!id || !/^\d+$/.test(id)) {
@@ -121,6 +127,12 @@ function Register({ onRegister, onBulkRegister }) {
                 return;
             }
 
+            // Lig kontrol
+            if (!league) {
+                parseErrors.push(`Satır ${lineNumber}: Lig bilgisi boş olamaz`);
+                return;
+            }
+
             // TC Kimlik tekrar kontrolü
             const tcExists = participants.some(p => p.tcKimlik === id) || 
                             (window.registeredUsers && window.registeredUsers.some(user => user.tcKimlik === id));
@@ -136,7 +148,8 @@ function Register({ onRegister, onBulkRegister }) {
             participants.push({
                 tcKimlik: id,
                 ad: name,
-                gender: genderValue
+                gender: genderValue,
+                league: league.toLowerCase()
             });
         });
 
@@ -240,6 +253,18 @@ function Register({ onRegister, onBulkRegister }) {
                             </select>
                         </div>
 
+                        <div className="form-group">
+                            <label>Lig:</label>
+                            <input
+                                type="text"
+                                name="league"
+                                value={formData.league}
+                                onChange={handleInputChange}
+                                placeholder="örn: sarı, beyaz, kırmızı"
+                            />
+                            {errors.league && <span className="error">{errors.league}</span>}
+                        </div>
+
                         <button type="submit">Kayıt Ol</button>
                     </form>
                 </>
@@ -252,13 +277,17 @@ function Register({ onRegister, onBulkRegister }) {
                             Her satıra bir katılımcı gelecek şekilde aşağıdaki formatı kullanın:
                         </p>
                         <div className="format-example">
-                            <strong>Format:</strong> TC_Kimlik-Ad_Soyad-Cinsiyet
+                            <strong>Format:</strong> TC_Kimlik-Ad_Soyad-Cinsiyet-Lig
                             <br />
                             <strong>Örnek:</strong>
                             <br />
-                            12345678901-Mehmet Murat Yazıcı-erkek
+                            1-Mehmet Murat Yazıcı-erkek-sarı
                             <br />
-                            98765432109-Ayşe Fatma Kaya-kadın
+                            2-Ahmet Yılmaz-erkek-sarı
+                            <br />
+                            3-Hasan Demir-erkek-beyaz
+                            <br />
+                            4-Ayşe Kaya-kadın-beyaz
                         </div>
                     </div>
 
